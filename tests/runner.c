@@ -1,7 +1,7 @@
 #include "unity.h"
 #include "utf8.h"
 #include <stdint.h>
-#include <stdbool.h>
+#include <stddef.h>
 
 void setUp(void) {
 }
@@ -9,140 +9,162 @@ void setUp(void) {
 void tearDown(void) {
 }
 
-// Test cases for utf8_char_length
-void test_utf8_char_length_ascii(void) {
-    // Test ASCII character (1-byte sequence)
-    TEST_ASSERT_EQUAL(1, utf8_char_length(0x41)); // 'A'
+// Helper function for counting codepoints in tests
+static void count_callback(uint32_t codepoint, void *context) {
+    (void) codepoint;
+    (*(size_t *) context)++;
 }
 
-void test_utf8_char_length_two_byte(void) {
-    // Test 2-byte UTF-8 sequence
-    TEST_ASSERT_EQUAL(2, utf8_char_length(0xC3)); // First byte of 'é'
+/*********************************
+ * utf8_str_validate tests
+ *********************************/
+void test_utf8_str_validate_valid(void) {
+    const uint8_t valid_str[] = {0xC3, 0xA9, 0x6E, 0x64}; // "énd"
+    TEST_ASSERT_EQUAL(UTF8_OK, utf8_str_validate(valid_str, sizeof(valid_str)));
 }
 
-void test_utf8_char_length_invalid(void) {
-    // Test invalid UTF-8 sequence
-    TEST_ASSERT_EQUAL(0, utf8_char_length(0xFF)); // Invalid first byte
+void test_utf8_str_validate_incomplete_sequence(void) {
+    const uint8_t invalid_str[] = {0xC3}; // Missing continuation byte
+    TEST_ASSERT_EQUAL(UTF8_ERR_INVALID_SEQUENCE, utf8_str_validate(invalid_str, sizeof(invalid_str)));
 }
 
-// Test cases for utf8_validate
-void test_utf8_validate_valid(void) {
-    // Test valid UTF-8 string
-    uint8_t str[] = {0xC3, 0xA9, 0x6E, 0x64}; // "énd"
-    TEST_ASSERT_TRUE(utf8_validate(str, sizeof(str)));
+void test_utf8_str_validate_null_input(void) {
+    TEST_ASSERT_EQUAL(UTF8_ERR_NULL_POINTER, utf8_str_validate(NULL, 4));
 }
 
-void test_utf8_validate_invalid(void) {
-    // Test invalid UTF-8 string (incomplete sequence)
-    uint8_t str[] = {0xC3}; // Incomplete 2-byte sequence
-    TEST_ASSERT_FALSE(utf8_validate(str, sizeof(str)));
+void test_utf8_str_validate_overlong_encoding(void) {
+    const uint8_t overlong[] = {0xC0, 0xAF}; // Overlong encoding for '/'
+    TEST_ASSERT_EQUAL(UTF8_ERR_INVALID_SEQUENCE, utf8_str_validate(overlong, sizeof(overlong)));
 }
 
-// Test cases for utf8_count_codepoints
-void test_utf8_count_codepoints_valid(void) {
-    // Test valid UTF-8 string
-    uint8_t str[] = {0xC3, 0xA9, 0x6E, 0x64}; // "énd"
-    TEST_ASSERT_EQUAL(3, utf8_count_codepoints(str, sizeof(str)));
+/*********************************
+ * utf8_str_count_codepoints tests
+ *********************************/
+void test_utf8_str_count_valid(void) {
+    const uint8_t str[] = {0xF0, 0x9F, 0x98, 0x8A, 0x41}; // 😊A
+    size_t count;
+    TEST_ASSERT_EQUAL(UTF8_OK, utf8_str_count_codepoints(str, sizeof(str), &count));
+    TEST_ASSERT_EQUAL(2, count);
 }
 
-void test_utf8_count_codepoints_invalid(void) {
-    // Test invalid UTF-8 string
-    uint8_t str[] = {0xC3}; // Incomplete 2-byte sequence
-    TEST_ASSERT_EQUAL((size_t)-1, utf8_count_codepoints(str, sizeof(str)));
+void test_utf8_str_count_invalid_sequence(void) {
+    const uint8_t invalid_str[] = {0xED, 0xA0, 0x80}; // Invalid surrogate
+    size_t count;
+    TEST_ASSERT_EQUAL(UTF8_ERR_INVALID_SEQUENCE, utf8_str_count_codepoints(invalid_str, sizeof(invalid_str), &count));
 }
 
-// Test cases for utf8_encode_codepoint
-void test_utf8_encode_codepoint_ascii(void) {
-    // Test encoding ASCII character
-    uint8_t buffer[4] = {0};
-    TEST_ASSERT_EQUAL(1, utf8_encode_codepoint(0x41, buffer, sizeof(buffer))); // 'A'
+void test_utf8_str_count_null_input(void) {
+    size_t count;
+    TEST_ASSERT_EQUAL(UTF8_ERR_NULL_POINTER, utf8_str_count_codepoints(NULL, 4, &count));
+    TEST_ASSERT_EQUAL(UTF8_ERR_NULL_POINTER, utf8_str_count_codepoints((uint8_t[]){0x41}, 1, NULL));
+}
+
+/*********************************
+ * utf8_codepoint_encode tests
+ *********************************/
+void test_utf8_encode_valid_ascii(void) {
+    uint8_t buffer[4];
+    size_t written;
+    TEST_ASSERT_EQUAL(UTF8_OK, utf8_codepoint_encode(0x41, buffer, sizeof(buffer), &written));
+    TEST_ASSERT_EQUAL(1, written);
     TEST_ASSERT_EQUAL(0x41, buffer[0]);
 }
 
-void test_utf8_encode_codepoint_two_byte(void) {
-    // Test encoding 2-byte UTF-8 sequence
-    uint8_t buffer[4] = {0};
-    TEST_ASSERT_EQUAL(2, utf8_encode_codepoint(0x00E9, buffer, sizeof(buffer))); // 'é'
-    TEST_ASSERT_EQUAL(0xC3, buffer[0]);
-    TEST_ASSERT_EQUAL(0xA9, buffer[1]);
+void test_utf8_encode_valid_4byte(void) {
+    uint8_t buffer[4];
+    size_t written;
+    TEST_ASSERT_EQUAL(UTF8_OK, utf8_codepoint_encode(0x1F60A, buffer, sizeof(buffer), &written));
+    TEST_ASSERT_EQUAL(4, written);
+    TEST_ASSERT_EQUAL(0xF0, buffer[0]);
+    TEST_ASSERT_EQUAL(0x9F, buffer[1]);
+    TEST_ASSERT_EQUAL(0x98, buffer[2]);
+    TEST_ASSERT_EQUAL(0x8A, buffer[3]);
 }
 
-void test_utf8_encode_codepoint_invalid(void) {
-    // Test encoding invalid code point
-    uint8_t buffer[4] = {0};
-    TEST_ASSERT_EQUAL(0, utf8_encode_codepoint(0x110000, buffer, sizeof(buffer))); // Invalid code point
+void test_utf8_encode_invalid_codepoint(void) {
+    uint8_t buffer[4];
+    size_t written;
+    TEST_ASSERT_EQUAL(UTF8_ERR_INVALID_CODEPOINT, utf8_codepoint_encode(0x110000, buffer, sizeof(buffer), &written));
 }
 
-// Test cases for utf8_decode_codepoint
-void test_utf8_decode_codepoint_ascii(void) {
-    // Test decoding ASCII character
-    uint8_t str[] = {0x41}; // 'A'
-    TEST_ASSERT_EQUAL(0x41, utf8_decode_codepoint(str, sizeof(str)));
+void test_utf8_encode_buffer_too_small(void) {
+    uint8_t buffer[2];
+    size_t written;
+    TEST_ASSERT_EQUAL(UTF8_ERR_BUFFER_TOO_SMALL, utf8_codepoint_encode(0x0800, buffer, sizeof(buffer), &written));
+    TEST_ASSERT_EQUAL(3, written);
 }
 
-void test_utf8_decode_codepoint_two_byte(void) {
-    // Test decoding 2-byte UTF-8 sequence
-    uint8_t str[] = {0xC3, 0xA9}; // 'é'
-    TEST_ASSERT_EQUAL(0x00E9, utf8_decode_codepoint(str, sizeof(str)));
+/*********************************
+ * utf8_codepoint_decode tests
+ *********************************/
+void test_utf8_decode_valid_ascii(void) {
+    const uint8_t input[] = {0x41};
+    uint32_t codepoint;
+    size_t consumed;
+    TEST_ASSERT_EQUAL(UTF8_OK, utf8_codepoint_decode(input, sizeof(input), &codepoint, &consumed));
+    TEST_ASSERT_EQUAL(0x41, codepoint);
+    TEST_ASSERT_EQUAL(1, consumed);
 }
 
-void test_utf8_decode_codepoint_invalid(void) {
-    // Test decoding invalid UTF-8 sequence
-    uint8_t str[] = {0xC3}; // Incomplete 2-byte sequence
-    TEST_ASSERT_EQUAL((uint32_t)-1, utf8_decode_codepoint(str, sizeof(str)));
+void test_utf8_decode_valid_4byte(void) {
+    const uint8_t input[] = {0xF0, 0x9F, 0x98, 0x8A};
+    uint32_t codepoint;
+    size_t consumed;
+    TEST_ASSERT_EQUAL(UTF8_OK, utf8_codepoint_decode(input, sizeof(input), &codepoint, &consumed));
+    TEST_ASSERT_EQUAL(0x1F60A, codepoint);
+    TEST_ASSERT_EQUAL(4, consumed);
 }
 
-// Test cases for utf8_iterate
-void callback(uint32_t codepoint, void *context) {
-    // Callback function for utf8_iterate
-    (*(uint32_t *) context)++;
+void test_utf8_decode_invalid_sequence(void) {
+    const uint8_t input[] = {0xC3}; // Incomplete sequence
+    uint32_t codepoint;
+    size_t consumed;
+    TEST_ASSERT_EQUAL(UTF8_ERR_INVALID_SEQUENCE, utf8_codepoint_decode(input, sizeof(input), &codepoint, &consumed));
 }
 
-void test_utf8_iterate_valid(void) {
-    // Test iterating over a valid UTF-8 string
-    uint8_t str[] = {0xC3, 0xA9, 0x6E, 0x64}; // "énd"
-    uint32_t count = 0;
-    TEST_ASSERT_TRUE(utf8_iterate(str, sizeof(str), callback, &count));
-    TEST_ASSERT_EQUAL(3, count); // 3 code points
+void test_utf8_decode_overlong_encoding(void) {
+    const uint8_t input[] = {0xC0, 0xAF}; // Overlong '/'
+    uint32_t codepoint;
+    size_t consumed;
+    TEST_ASSERT_EQUAL(UTF8_ERR_INVALID_SEQUENCE, utf8_codepoint_decode(input, sizeof(input), &codepoint, &consumed));
 }
 
-void test_utf8_iterate_invalid(void) {
-    // Test iterating over an invalid UTF-8 string
-    uint8_t str[] = {0xC3}; // Incomplete 2-byte sequence
-    uint32_t count = 0;
-    TEST_ASSERT_FALSE(utf8_iterate(str, sizeof(str), callback, &count));
+void test_utf8_decode_surrogate_pair(void) {
+    const uint8_t input[] = {0xED, 0xA0, 0x80}; // Invalid surrogate
+    uint32_t codepoint;
+    size_t consumed;
+    TEST_ASSERT_EQUAL(UTF8_ERR_INVALID_SEQUENCE, utf8_codepoint_decode(input, sizeof(input), &codepoint, &consumed));
 }
 
-// Main function to run all tests
+/*********************************
+ * Test Runner
+ *********************************/
 int main(void) {
     UNITY_BEGIN();
 
-    // Run tests for utf8_char_length
-    RUN_TEST(test_utf8_char_length_ascii);
-    RUN_TEST(test_utf8_char_length_two_byte);
-    RUN_TEST(test_utf8_char_length_invalid);
+    // Validation tests
+    RUN_TEST(test_utf8_str_validate_valid);
+    RUN_TEST(test_utf8_str_validate_incomplete_sequence);
+    RUN_TEST(test_utf8_str_validate_null_input);
+    RUN_TEST(test_utf8_str_validate_overlong_encoding);
 
-    // Run tests for utf8_validate
-    RUN_TEST(test_utf8_validate_valid);
-    RUN_TEST(test_utf8_validate_invalid);
+    // Count codepoints tests
+    RUN_TEST(test_utf8_str_count_valid);
+    RUN_TEST(test_utf8_str_count_invalid_sequence);
+    RUN_TEST(test_utf8_str_count_null_input);
 
-    // Run tests for utf8_count_codepoints
-    RUN_TEST(test_utf8_count_codepoints_valid);
-    RUN_TEST(test_utf8_count_codepoints_invalid);
+    // Encode tests
+    RUN_TEST(test_utf8_encode_valid_ascii);
+    RUN_TEST(test_utf8_encode_valid_4byte);
+    RUN_TEST(test_utf8_encode_invalid_codepoint);
+    RUN_TEST(test_utf8_encode_buffer_too_small);
 
-    // Run tests for utf8_encode_codepoint
-    RUN_TEST(test_utf8_encode_codepoint_ascii);
-    RUN_TEST(test_utf8_encode_codepoint_two_byte);
-    RUN_TEST(test_utf8_encode_codepoint_invalid);
-
-    // Run tests for utf8_decode_codepoint
-    RUN_TEST(test_utf8_decode_codepoint_ascii);
-    RUN_TEST(test_utf8_decode_codepoint_two_byte);
-    RUN_TEST(test_utf8_decode_codepoint_invalid);
-
-    // Run tests for utf8_iterate
-    RUN_TEST(test_utf8_iterate_valid);
-    RUN_TEST(test_utf8_iterate_invalid);
+    // Decode tests
+    RUN_TEST(test_utf8_decode_valid_ascii);
+    RUN_TEST(test_utf8_decode_valid_4byte);
+    RUN_TEST(test_utf8_decode_invalid_sequence);
+    RUN_TEST(test_utf8_decode_overlong_encoding);
+    RUN_TEST(test_utf8_decode_surrogate_pair);
 
     return UNITY_END();
 }
