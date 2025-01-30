@@ -29,6 +29,22 @@ if (NOT EXISTS "${PROJECT_SOURCE_DIR}/external/unity/CMakeLists.txt")
     message(FATAL_ERROR "unity submodule is missing. Please initialize and update submodules.")
 endif ()
 
+# Find Doxygen
+find_package(Doxygen REQUIRED)
+
+if (DOXYGEN_FOUND)
+    # Configure Doxyfile
+    configure_file(Doxyfile.in Doxyfile @ONLY)
+
+    # Add 'docs' target
+    add_custom_target(docs
+            COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            COMMENT "Generating documentation with Doxygen"
+            VERBATIM
+    )
+endif ()
+
 
 add_subdirectory(src)
 add_subdirectory(examples)
