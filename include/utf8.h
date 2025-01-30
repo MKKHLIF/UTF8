@@ -1,86 +1,105 @@
+/**
+ * @file utf8.h
+ * @brief UTF-8 Encoding/Decoding Library
+ * @author MK
+ * @date 2025-01-30
+ * 
+ * A minimal library for handling UTF-8 encoded strings in C.
+ * Provides validation, encoding, decoding, and codepoint counting.
+ */
+
 #ifndef UTF8_H
 #define UTF8_H
 
 #include <stddef.h>
 #include <stdint.h>
-#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+/**
+ * @brief Error codes returned by library functions.
+ */
+typedef enum {
+    UTF8_OK, ///< Operation succeeded.
+    UTF8_ERR_INVALID_CODEPOINT, ///< Invalid Unicode codepoint (e.g., > 0x10FFFF).
+    UTF8_ERR_INVALID_SEQUENCE, ///< Invalid UTF-8 byte sequence.
+    UTF8_ERR_BUFFER_TOO_SMALL, ///< Provided buffer is too small.
+    UTF8_ERR_NULL_POINTER ///< NULL pointer passed where not allowed.
+} utf8_error_t;
 
-// Function to calculate the length (in bytes) of a UTF-8 encoded character
-// given its first byte.
-//
-// Parameters:
-//   first_byte: The first byte of the UTF-8 encoded character.
-//
-// Returns:
-//   The length of the UTF-8 encoded character in bytes (1 to 4), or 0 if the
-//   byte is not a valid start of a UTF-8 sequence.
-size_t utf8_char_length(uint8_t first_byte);
+/**
+ * @brief Validate a UTF-8 encoded string.
+ * 
+ * @param input Pointer to the UTF-8 encoded byte array.
+ * @param input_len Length of the input in bytes.
+ * @return utf8_error_t 
+ *   - UTF8_OK: Valid UTF-8.
+ *   - UTF8_ERR_INVALID_SEQUENCE: Invalid byte sequence.
+ *   - UTF8_ERR_NULL_POINTER: `input` is NULL.
+ * 
+ * @example
+ * uint8_t str[] = {0xC3, 0xA9, 0x6E, 0x64}; // "énd"
+ * utf8_error_t err = utf8_str_validate(str, sizeof(str));
+ */
+utf8_error_t utf8_str_validate(const uint8_t *input, size_t input_len);
 
-// Function to validate a UTF-8 encoded string.
-//
-// Parameters:
-//   str: A pointer to the UTF-8 encoded string.
-//   length: The length of the string in bytes.
-//
-// Returns:
-//   true if the string is valid UTF-8, false otherwise.
-bool utf8_validate(const uint8_t *str, size_t length);
+/**
+ * @brief Count the number of Unicode codepoints in a UTF-8 string.
+ * 
+ * @param input Pointer to the UTF-8 encoded byte array.
+ * @param input_len Length of the input in bytes.
+ * @param count_out Output parameter for the codepoint count.
+ * @return utf8_error_t 
+ *   - UTF8_OK: Success.
+ *   - UTF8_ERR_INVALID_SEQUENCE: Invalid byte sequence.
+ *   - UTF8_ERR_NULL_POINTER: `input` or `count_out` is NULL.
+ */
+utf8_error_t utf8_str_count_codepoints(
+    const uint8_t *input,
+    size_t input_len,
+    size_t *count_out
+);
 
-// Function to count the number of Unicode code points (characters) in a UTF-8
-// encoded string.
-//
-// Parameters:
-//   str: A pointer to the UTF-8 encoded string.
-//   length: The length of the string in bytes.
-//
-// Returns:
-//   The number of Unicode code points in the string, or (size_t)-1 if the
-//   string is not valid UTF-8.
-size_t utf8_count_codepoints(const uint8_t *str, size_t length);
+/**
+ * @brief Encode a Unicode codepoint into a UTF-8 byte sequence.
+ * 
+ * @param codepoint Unicode codepoint (U+0000 to U+10FFFF).
+ * @param buffer_out Output buffer to write the UTF-8 bytes.
+ * @param buffer_size Size of `buffer_out` in bytes.
+ * @param bytes_written_out Actual number of bytes written to `buffer_out`.
+ * @return utf8_error_t 
+ *   - UTF8_OK: Success.
+ *   - UTF8_ERR_INVALID_CODEPOINT: Codepoint is invalid.
+ *   - UTF8_ERR_BUFFER_TOO_SMALL: `buffer_out` is too small.
+ *   - UTF8_ERR_NULL_POINTER: `buffer_out` or `bytes_written_out` is NULL.
+ */
+utf8_error_t utf8_codepoint_encode(
+    uint32_t codepoint,
+    uint8_t *buffer_out,
+    size_t buffer_size,
+    size_t *bytes_written_out
+);
 
-// Function to encode a Unicode code point into a UTF-8 sequence.
-//
-// Parameters:
-//   codepoint: The Unicode code point to encode.
-//   buffer: A pointer to a buffer where the UTF-8 sequence will be stored.
-//   buffer_size: The size of the buffer in bytes.
-//
-// Returns:
-//   The number of bytes written to the buffer, or 0 if the code point is invalid
-//   or the buffer is too small.
-size_t utf8_encode_codepoint(uint32_t codepoint, uint8_t *buffer, size_t buffer_size);
-
-// Function to decode a UTF-8 sequence into a Unicode code point.
-//
-// Parameters:
-//   str: A pointer to the start of the UTF-8 sequence.
-//   length: The length of the string in bytes.
-//
-// Returns:
-//   The decoded Unicode code point, or (uint32_t)-1 if the sequence is invalid.
-uint32_t utf8_decode_codepoint(const uint8_t *str, size_t length);
-
-// Function to iterate over a UTF-8 encoded string and call a callback for each
-// Unicode code point.
-//
-// Parameters:
-//   str: A pointer to the UTF-8 encoded string.
-//   length: The length of the string in bytes.
-//   callback: A function pointer to the callback that will be called for each
-//             code point. The callback receives the code point and a user-provided
-//             context pointer.
-//   context: A user-provided context pointer that will be passed to the callback.
-//
-// Returns:
-//   true if the string was successfully iterated over, false if the string is
-//   not valid UTF-8.
-bool utf8_iterate(const uint8_t *str, size_t length, void (*callback)(uint32_t codepoint, void *context),
-                  void *context);
+/**
+ * @brief Decode a UTF-8 byte sequence into a Unicode codepoint.
+ * 
+ * @param input Pointer to the UTF-8 byte sequence.
+ * @param input_len Length of the input in bytes.
+ * @param codepoint_out Decoded Unicode codepoint.
+ * @param bytes_consumed_out Actual number of bytes read from `input`.
+ * @return utf8_error_t 
+ *   - UTF8_OK: Success.
+ *   - UTF8_ERR_INVALID_SEQUENCE: Invalid byte sequence.
+ *   - UTF8_ERR_NULL_POINTER: `input`, `codepoint_out`, or `bytes_consumed_out` is NULL.
+ */
+utf8_error_t utf8_codepoint_decode(
+    const uint8_t *input,
+    size_t input_len,
+    uint32_t *codepoint_out,
+    size_t *bytes_consumed_out
+);
 
 #ifdef __cplusplus
 }
