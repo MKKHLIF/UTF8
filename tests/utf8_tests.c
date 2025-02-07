@@ -7,26 +7,6 @@ void tearDown(void) {
 }
 
 /*********************************
- * utf8_str_validate tests
- *********************************/
-extern void test_utf8_str_validate_valid(void);
-
-extern void test_utf8_str_validate_incomplete_sequence(void);
-
-extern void test_utf8_str_validate_null_input(void);
-
-extern void test_utf8_str_validate_overlong_encoding(void);
-
-/*********************************
- * utf8_str_count_codepoints tests
- *********************************/
-extern void test_utf8_str_count_valid(void);
-
-extern void test_utf8_str_count_invalid_sequence(void);
-
-extern void test_utf8_str_count_null_input(void);
-
-/*********************************
  * utf8_codepoint_encode tests
  *********************************/
 extern void test_utf8_encode_valid_ascii(void);
