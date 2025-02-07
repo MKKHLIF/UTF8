@@ -89,7 +89,7 @@ utf8_error_t utf8_decode_cp(
     if (sequence == NULL || codepoint == NULL || consumed == NULL) {
         return UTF8_ERR_NULL_POINTER;
     }
-
+    *consumed = 0;
     size_t char_len = count_leading_ones(sequence[0]);
     if (char_len == 0) {
         char_len = 1; // ASCII
@@ -136,5 +136,105 @@ utf8_error_t utf8_decode_cp(
     }
     *codepoint = cp;
     *consumed = char_len;
+    return UTF8_OK;
+}
+
+// Stream encoding function: takes a stream of codepoints, encodes each one as UTF-8, and outputs the sequence.
+utf8_error_t utf8_encode_stream(
+    const uint32_t *codepoints, // Input codepoints
+    size_t codepoints_count, // Number of codepoints in the stream
+    uint8_t *buffer, // Output buffer
+    size_t buffer_size, // Size of the output buffer
+    size_t *written // Number of bytes written to the buffer
+) {
+    // Validate input pointers
+    if (codepoints == NULL || buffer == NULL || written == NULL) {
+        return UTF8_ERR_NULL_POINTER;
+    }
+
+    *written = 0; // Initialize output
+    size_t total_written = 0;
+
+    // Iterate over the codepoint stream
+    for (size_t i = 0; i < codepoints_count; i++) {
+        size_t bytes_written = 0;
+
+        // Check if there's enough space in the buffer for the worst-case scenario (4 bytes)
+        if (total_written + 4 > buffer_size) {
+            *written = total_written; // Return how much was written before the error
+            return UTF8_ERR_BUFFER_TOO_SMALL;
+        }
+
+        // Encode the current codepoint
+        utf8_error_t err = utf8_encode_cp(
+            codepoints[i], // Current codepoint
+            buffer + total_written, // Write to the buffer at the current position
+            buffer_size - total_written, // Remaining buffer space
+            &bytes_written // Bytes written for this codepoint
+        );
+
+        // Handle encoding errors
+        if (err != UTF8_OK) {
+            *written = total_written; // Return how much was written before the error
+            return err;
+        }
+
+        // Update the total bytes written
+        total_written += bytes_written;
+    }
+
+    // Success
+    *written = total_written;
+    return UTF8_OK;
+}
+
+utf8_error_t utf8_decode_stream(
+    const uint8_t *buffer, // Input UTF-8 encoded buffer
+    size_t buffer_size, // Size of the input buffer
+    uint32_t *codepoints, // Output buffer for decoded codepoints
+    size_t codepoints_size, // Size of the codepoints buffer
+    size_t *decoded // Number of codepoints decoded
+) {
+    // Validate input pointers
+    if (buffer == NULL || codepoints == NULL || decoded == NULL) {
+        return UTF8_ERR_NULL_POINTER;
+    }
+
+    *decoded = 0; // Initialize output
+    size_t total_decoded = 0;
+    size_t consumed = 0;
+
+    // Iterate over the input buffer
+    while (consumed < buffer_size) {
+        // Check if there's enough space in the codepoints buffer
+        if (total_decoded >= codepoints_size) {
+            *decoded = total_decoded; // Return how many codepoints were decoded before the error
+            return UTF8_ERR_BUFFER_TOO_SMALL;
+        }
+
+        // Decode the next codepoint
+        uint32_t cp;
+        size_t bytes_consumed = 0;
+        utf8_error_t err = utf8_decode_cp(
+            buffer + consumed, // Current position in the buffer
+            buffer_size - consumed, // Remaining buffer size
+            &cp, // Decoded codepoint
+            &bytes_consumed // Bytes consumed for this codepoint
+        );
+
+        // Handle decoding errors
+        if (err != UTF8_OK) {
+            *decoded = total_decoded; // Return how many codepoints were decoded before the error
+            return err;
+        }
+
+        // Store the decoded codepoint
+        codepoints[total_decoded] = cp;
+        total_decoded++;
+        consumed += bytes_consumed;
+    }
+
+    // Success
+    *decoded = total_decoded;
     return UTF8_OK;
 }
