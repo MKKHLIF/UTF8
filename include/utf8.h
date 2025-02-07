@@ -68,6 +68,51 @@ utf8_error_t utf8_decode_cp(
     size_t *consumed
 );
 
+/**
+ * @brief Encode a stream of Unicode codepoints into a UTF-8 byte sequence.
+ *
+ * @param codepoints Pointer to an array of Unicode codepoints (U+0000 to U+10FFFF).
+ * @param codepoints_count The number of codepoints to encode.
+ * @param buffer Output buffer to write the UTF-8 bytes.
+ * @param buffer_size Size of `buffer` in bytes.
+ * @param written Actual number of bytes written to `buffer`.
+ * @return utf8_error_t
+ *   - UTF8_OK: Success.
+ *   - UTF8_ERR_INVALID_CODEPOINT: One or more codepoints are invalid.
+ *   - UTF8_ERR_BUFFER_TOO_SMALL: `buffer` is too small to hold the encoded stream.
+ *   - UTF8_ERR_NULL_POINTER: `buffer` or `written` is NULL.
+ */
+utf8_error_t utf8_encode_stream(
+    const uint32_t *codepoints,
+    size_t codepoints_count,
+    uint8_t *buffer,
+    size_t buffer_size,
+    size_t *written
+);
+
+/**
+ * @brief Decode a UTF-8 byte sequence into a stream of Unicode codepoints.
+ *
+ * @param buffer Pointer to the UTF-8 byte sequence.
+ * @param buffer_size Length of the input in bytes.
+ * @param codepoints Pointer to an array of decoded Unicode codepoints.
+ * @param codepoints_size The maximum number of codepoints that can be decoded.
+ * @param decoded The actual number of codepoints decoded.
+ * @return utf8_error_t
+ *   - UTF8_OK: Success.
+ *   - UTF8_ERR_INVALID_SEQUENCE: Invalid byte sequence in the input buffer.
+ *   - UTF8_ERR_NULL_POINTER: `buffer`, `codepoints`, or `decoded` is NULL.
+ *   - UTF8_ERR_BUFFER_TOO_SMALL: `codepoints` array is too small to hold all decoded codepoints.
+ */
+utf8_error_t utf8_decode_stream(
+    const uint8_t *buffer,
+    size_t buffer_size,
+    uint32_t *codepoints,
+    size_t codepoints_size,
+    size_t *decoded
+);
+
+
 #ifdef __cplusplus
 }
 #endif
