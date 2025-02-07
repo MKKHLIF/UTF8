@@ -30,39 +30,6 @@ typedef enum {
 } utf8_error_t;
 
 /**
- * @brief Validate a UTF-8 encoded string.
- * 
- * @param input Pointer to the UTF-8 encoded byte array.
- * @param input_len Length of the input in bytes.
- * @return utf8_error_t 
- *   - UTF8_OK: Valid UTF-8.
- *   - UTF8_ERR_INVALID_SEQUENCE: Invalid byte sequence.
- *   - UTF8_ERR_NULL_POINTER: `input` is NULL.
- * 
- * @example
- * uint8_t str[] = {0xC3, 0xA9, 0x6E, 0x64}; // "énd"
- * utf8_error_t err = utf8_str_validate(str, sizeof(str));
- */
-utf8_error_t utf8_str_validate(const uint8_t *input, size_t input_len);
-
-/**
- * @brief Count the number of Unicode codepoints in a UTF-8 string.
- * 
- * @param input Pointer to the UTF-8 encoded byte array.
- * @param input_len Length of the input in bytes.
- * @param count_out Output parameter for the codepoint count.
- * @return utf8_error_t 
- *   - UTF8_OK: Success.
- *   - UTF8_ERR_INVALID_SEQUENCE: Invalid byte sequence.
- *   - UTF8_ERR_NULL_POINTER: `input` or `count_out` is NULL.
- */
-utf8_error_t utf8_str_count_codepoints(
-    const uint8_t *input,
-    size_t input_len,
-    size_t *count_out
-);
-
-/**
  * @brief Encode a Unicode codepoint into a UTF-8 byte sequence.
  * 
  * @param codepoint Unicode codepoint (U+0000 to U+10FFFF).
