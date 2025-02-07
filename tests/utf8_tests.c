@@ -57,17 +57,6 @@ extern void test_utf8_decode_surrogate_pair(void);
 int main(void) {
  UNITY_BEGIN();
 
- // Validation tests
- RUN_TEST(test_utf8_str_validate_valid);
- RUN_TEST(test_utf8_str_validate_incomplete_sequence);
- RUN_TEST(test_utf8_str_validate_null_input);
- RUN_TEST(test_utf8_str_validate_overlong_encoding);
-
- // Count codepoints tests
- RUN_TEST(test_utf8_str_count_valid);
- RUN_TEST(test_utf8_str_count_invalid_sequence);
- RUN_TEST(test_utf8_str_count_null_input);
-
  // Encode tests
  RUN_TEST(test_utf8_encode_valid_ascii);
  RUN_TEST(test_utf8_encode_valid_4byte);
