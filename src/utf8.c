@@ -3,12 +3,10 @@
 #include <stdint.h>
 #include <stddef.h>
 
-// Helper: Check if a byte is a valid continuation byte (starts with 10).
 static bool is_continuation_byte(const uint8_t byte) {
     return (byte & 0xC0) == 0x80;
 }
 
-// Helper: Count leading 1s in a byte to determine UTF-8 sequence length.
 static size_t count_leading_ones(uint8_t byte) {
     size_t count = 0;
     while ((byte & 0x80) != 0) {
@@ -18,7 +16,6 @@ static size_t count_leading_ones(uint8_t byte) {
     return count;
 }
 
-// Helper: Validate a single UTF-8 character starting at `input`.
 static utf8_error_t validate_char(
     const uint8_t *input,
     const size_t input_len,
@@ -30,14 +27,14 @@ static utf8_error_t validate_char(
 
     size_t char_len = count_leading_ones(input[0]);
     if (char_len == 1 || char_len > 4) {
-        return UTF8_ERR_INVALID_SEQUENCE; // Invalid start byte
+        return UTF8_ERR_INVALID_SEQUENCE;
     }
     if (char_len == 0) {
         char_len = 1; // ASCII
     }
 
     if (input_len < char_len) {
-        return UTF8_ERR_INVALID_SEQUENCE; // Incomplete sequence
+        return UTF8_ERR_INVALID_SEQUENCE;
     }
 
     for (size_t i = 1; i < char_len; i++) {
@@ -50,8 +47,7 @@ static utf8_error_t validate_char(
     return UTF8_OK;
 }
 
-// Public Functions
-utf8_error_t utf8_str_validate(const uint8_t *input, size_t input_len) {
+utf8_error_t utf8_str_validate(const uint8_t *input, const size_t input_len) {
     if (input == NULL) {
         return UTF8_ERR_NULL_POINTER;
     }
@@ -91,6 +87,8 @@ utf8_error_t utf8_str_count_codepoints(
     *count_out = count;
     return UTF8_OK;
 }
+
+// ---------------------------------------- Public Interfaces ----------------------------------------
 
 utf8_error_t utf8_codepoint_encode(
     const uint32_t codepoint,
@@ -200,6 +198,10 @@ utf8_error_t utf8_codepoint_decode(
         return UTF8_ERR_INVALID_SEQUENCE;
     }
 
+    // Validate codepoint range
+    if (codepoint > 0x10FFFF || (codepoint >= 0xD800 && codepoint <= 0xDFFF)) {
+        return UTF8_ERR_INVALID_SEQUENCE;
+    }
     *codepoint_out = codepoint;
     *bytes_consumed_out = char_len;
     return UTF8_OK;
