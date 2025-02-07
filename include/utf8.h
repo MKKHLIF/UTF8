@@ -33,39 +33,39 @@ typedef enum {
  * @brief Encode a Unicode codepoint into a UTF-8 byte sequence.
  * 
  * @param codepoint Unicode codepoint (U+0000 to U+10FFFF).
- * @param buffer_out Output buffer to write the UTF-8 bytes.
+ * @param buffer Output buffer to write the UTF-8 bytes.
  * @param buffer_size Size of `buffer_out` in bytes.
- * @param bytes_written_out Actual number of bytes written to `buffer_out`.
+ * @param written Actual number of bytes written to `buffer_out`.
  * @return utf8_error_t 
  *   - UTF8_OK: Success.
  *   - UTF8_ERR_INVALID_CODEPOINT: Codepoint is invalid.
  *   - UTF8_ERR_BUFFER_TOO_SMALL: `buffer_out` is too small.
  *   - UTF8_ERR_NULL_POINTER: `buffer_out` or `bytes_written_out` is NULL.
  */
-utf8_error_t utf8_codepoint_encode(
+utf8_error_t utf8_encode_cp(
     uint32_t codepoint,
-    uint8_t *buffer_out,
+    uint8_t *buffer,
     size_t buffer_size,
-    size_t *bytes_written_out
+    size_t *written
 );
 
 /**
  * @brief Decode a UTF-8 byte sequence into a Unicode codepoint.
  * 
- * @param input Pointer to the UTF-8 byte sequence.
- * @param input_len Length of the input in bytes.
- * @param codepoint_out Decoded Unicode codepoint.
- * @param bytes_consumed_out Actual number of bytes read from `input`.
+ * @param sequence Pointer to the UTF-8 byte sequence.
+ * @param sequence_size Length of the input in bytes.
+ * @param codepoint Decoded Unicode codepoint.
+ * @param consumed Actual number of bytes read from `input`.
  * @return utf8_error_t 
  *   - UTF8_OK: Success.
  *   - UTF8_ERR_INVALID_SEQUENCE: Invalid byte sequence.
  *   - UTF8_ERR_NULL_POINTER: `input`, `codepoint_out`, or `bytes_consumed_out` is NULL.
  */
-utf8_error_t utf8_codepoint_decode(
-    const uint8_t *input,
-    size_t input_len,
-    uint32_t *codepoint_out,
-    size_t *bytes_consumed_out
+utf8_error_t utf8_decode_cp(
+    const uint8_t *sequence,
+    size_t sequence_size,
+    uint32_t *codepoint,
+    size_t *consumed
 );
 
 #ifdef __cplusplus

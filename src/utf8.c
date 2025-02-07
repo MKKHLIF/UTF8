@@ -3,8 +3,14 @@
 #include <stdint.h>
 #include <stddef.h>
 
+
 static bool is_continuation_byte(const uint8_t byte) {
     return (byte & 0xC0) == 0x80;
+}
+
+static bool is_valid_codepoint(const uint32_t cp) {
+    if (cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF)) return false;
+    return true;
 }
 
 static size_t count_leading_ones(uint8_t byte) {
@@ -16,20 +22,18 @@ static size_t count_leading_ones(uint8_t byte) {
     return count;
 }
 
-// ---------------------------------------- Public Interfaces ----------------------------------------
-
-utf8_error_t utf8_codepoint_encode(
+utf8_error_t utf8_encode_cp(
     const uint32_t codepoint,
-    uint8_t *buffer_out,
+    uint8_t *buffer,
     const size_t buffer_size,
-    size_t *bytes_written_out
+    size_t *written
 ) {
-    if (buffer_out == NULL || bytes_written_out == NULL) {
+    if (buffer == NULL || written == NULL) {
         return UTF8_ERR_NULL_POINTER;
     }
 
     // Validate codepoint range
-    if (codepoint > 0x10FFFF || (codepoint >= 0xD800 && codepoint <= 0xDFFF)) {
+    if (!is_valid_codepoint(codepoint)) {
         return UTF8_ERR_INVALID_CODEPOINT;
     }
 
@@ -45,79 +49,79 @@ utf8_error_t utf8_codepoint_encode(
     }
 
     if (buffer_size < bytes_needed) {
-        *bytes_written_out = bytes_needed;
+        *written = bytes_needed;
         return UTF8_ERR_BUFFER_TOO_SMALL;
     }
 
     // Encode the codepoint
     switch (bytes_needed) {
         case 1:
-            buffer_out[0] = (uint8_t) codepoint;
+            buffer[0] = (uint8_t) codepoint;
             break;
         case 2:
-            buffer_out[0] = 0xC0 | ((codepoint >> 6) & 0x1F);
-            buffer_out[1] = 0x80 | (codepoint & 0x3F);
+            buffer[0] = 0xC0 | ((codepoint >> 6) & 0x1F);
+            buffer[1] = 0x80 | (codepoint & 0x3F);
             break;
         case 3:
-            buffer_out[0] = 0xE0 | ((codepoint >> 12) & 0x0F);
-            buffer_out[1] = 0x80 | ((codepoint >> 6) & 0x3F);
-            buffer_out[2] = 0x80 | (codepoint & 0x3F);
+            buffer[0] = 0xE0 | ((codepoint >> 12) & 0x0F);
+            buffer[1] = 0x80 | ((codepoint >> 6) & 0x3F);
+            buffer[2] = 0x80 | (codepoint & 0x3F);
             break;
         case 4:
-            buffer_out[0] = 0xF0 | ((codepoint >> 18) & 0x07);
-            buffer_out[1] = 0x80 | ((codepoint >> 12) & 0x3F);
-            buffer_out[2] = 0x80 | ((codepoint >> 6) & 0x3F);
-            buffer_out[3] = 0x80 | (codepoint & 0x3F);
+            buffer[0] = 0xF0 | ((codepoint >> 18) & 0x07);
+            buffer[1] = 0x80 | ((codepoint >> 12) & 0x3F);
+            buffer[2] = 0x80 | ((codepoint >> 6) & 0x3F);
+            buffer[3] = 0x80 | (codepoint & 0x3F);
             break;
         default: ;
     }
 
-    *bytes_written_out = bytes_needed;
+    *written = bytes_needed;
     return UTF8_OK;
 }
 
-utf8_error_t utf8_codepoint_decode(
-    const uint8_t *input,
-    const size_t input_len,
-    uint32_t *codepoint_out,
-    size_t *bytes_consumed_out
+utf8_error_t utf8_decode_cp(
+    const uint8_t *sequence,
+    const size_t sequence_size,
+    uint32_t *codepoint,
+    size_t *consumed
 ) {
-    if (input == NULL || codepoint_out == NULL || bytes_consumed_out == NULL) {
+    if (sequence == NULL || codepoint == NULL || consumed == NULL) {
         return UTF8_ERR_NULL_POINTER;
     }
 
-    size_t char_len = count_leading_ones(input[0]);
+    size_t char_len = count_leading_ones(sequence[0]);
     if (char_len == 0) {
         char_len = 1; // ASCII
     } else if (char_len == 1 || char_len > 4) {
         return UTF8_ERR_INVALID_SEQUENCE; // Invalid start byte
     }
 
-    if (input_len < char_len) {
+    if (sequence_size < char_len) {
         return UTF8_ERR_INVALID_SEQUENCE; // Incomplete sequence
     }
 
     // Decode the codepoint
-    uint32_t codepoint = 0;
+    uint32_t cp = 0;
     if (char_len == 1) {
-        codepoint = input[0];
+        cp = sequence[0];
     } else {
-        codepoint = input[0] & (0xFF >> (char_len + 1));
+        cp = sequence[0] & (0xFF >> (char_len + 1));
         for (size_t i = 1; i < char_len; i++) {
-            if (!is_continuation_byte(input[i])) {
+            if (!is_continuation_byte(sequence[i])) {
                 return UTF8_ERR_INVALID_SEQUENCE;
             }
-            codepoint = (codepoint << 6) | (input[i] & 0x3F);
+            cp = (cp << 6) | (sequence[i] & 0x3F);
         }
     }
 
     // Check for overlong encoding
     size_t expected_len;
-    if (codepoint <= 0x7F) {
+    if (cp <= 0x7F) {
         expected_len = 1;
-    } else if (codepoint <= 0x7FF) {
+    } else if (cp <= 0x7FF) {
         expected_len = 2;
-    } else if (codepoint <= 0xFFFF) {
+    } else if (cp <= 0xFFFF) {
         expected_len = 3;
     } else {
         expected_len = 4;
@@ -127,10 +131,10 @@ utf8_error_t utf8_codepoint_decode(
     }
 
     // Validate codepoint range
-    if (codepoint > 0x10FFFF || (codepoint >= 0xD800 && codepoint <= 0xDFFF)) {
+    if (!is_valid_codepoint(cp)) {
         return UTF8_ERR_INVALID_SEQUENCE;
     }
-    *codepoint_out = codepoint;
-    *bytes_consumed_out = char_len;
+    *codepoint = cp;
+    *consumed = char_len;
     return UTF8_OK;
 }

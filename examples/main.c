@@ -51,7 +51,7 @@ int main() {
 
     // Encode '世' (U+4E16)
     const uint32_t codepoint = 0x4E16;
-    err = utf8_codepoint_encode(codepoint, buffer, sizeof(buffer), &bytes_written);
+    err = utf8_encode_cp(codepoint, buffer, sizeof(buffer), &bytes_written);
     if (err == UTF8_OK) {
         printf("Encoded U+4E16 ('世'): ");
         print_bytes(buffer, bytes_written);
@@ -63,7 +63,7 @@ int main() {
     size_t bytes_consumed;
 
     // Decode the first character from our hello string
-    err = utf8_codepoint_decode(hello, sizeof(hello), &decoded_codepoint, &bytes_consumed);
+    err = utf8_decode_cp(hello, sizeof(hello), &decoded_codepoint, &bytes_consumed);
     if (err == UTF8_OK) {
         printf("Decoded first codepoint: U+%04X (consumed %zu bytes)\n",
                decoded_codepoint, bytes_consumed);
@@ -73,7 +73,7 @@ int main() {
     printf("\n5. Error Handling\n");
 
     // Try to encode an invalid codepoint
-    err = utf8_codepoint_encode(0x110000, buffer, sizeof(buffer), &bytes_written);
+    err = utf8_encode_cp(0x110000, buffer, sizeof(buffer), &bytes_written);
     printf("Attempting to encode invalid codepoint (0x110000): %s\n",
            get_error_string(err));
 
