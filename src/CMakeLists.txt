@@ -6,5 +6,6 @@ file(GLOB_RECURSE HEADER_FILES "*.h")
 
 add_library(${This} STATIC ${SRC_FILES} ${HEADER_FILES})
 
-target_include_directories(${This} PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(${This} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include)
+
 #target_include_directories(${This} PRIVATE ${CMAKE_SOURCE_DIR}/src/internal)

@@ -51,3 +51,6 @@ add_subdirectory(examples)
 add_subdirectory(tests)
 add_subdirectory(external/unity)
 include(CTest)
+
+set(include_dirs "$${CMAKE_CURRENT_SOURCE_DIR}/include")
+include_directories(${include_dirs})
